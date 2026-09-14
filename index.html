@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leeuwarden Canlı Otobüs Saatleri</title>
+    <!-- Tailwind CSS (Hızlı ve modern UI için CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Scrollbar için küçük bir dokunuş */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <!-- Ana Konteyner -->
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden">
+        
+        <!-- Header -->
+        <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+            <h1 class="text-2xl font-bold text-white mb-2 tracking-tight">Durak Takibi</h1>
+            <p class="text-sm text-slate-400">Canlı otobüs varış saatleri</p>
+            
+            <!-- Durak Kodu Giriş Alanı -->
+            <div class="mt-4 flex gap-2">
+                <input type="text" id="stopCodeInput" placeholder="Durak Kodu (örn: lwble)" 
+                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
+                <button onclick="verileriGetir()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                    Getir
+                </button>
+            </div>
+        </div>
+
+        <!-- Durum Mesajı (Yükleniyor / Hata) -->
+        <div id="statusMessage" class="hidden p-4 text-center text-sm font-medium"></div>
+
+        <!-- Otobüs Listesi -->
+        <div id="busList" class="max-h-[400px] overflow-y-auto p-2">
+            <!-- JavaScript ile otobüs kartları buraya eklenecek -->
+            <div class="p-4 text-center text-slate-500 italic">
+                Başlamak için yukarıya bir durak kodu girin.
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // Tarih formatlama yardımcısı (2026-09-14T17:49:00 -> 17:49)
+        function formatSaat(tarihString) {
+            if (!tarihString) return "--:--";
+            const date = new Date(tarihString);
+            return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function verileriGetir() {
+            const inputElement = document.getElementById('stopCodeInput');
+            const busListElement = document.getElementById('busList');
+            const statusElement = document.getElementById('statusMessage');
+            
+            const durakKodu = inputElement.value.trim().toLowerCase();
+
+            if (!durakKodu) {
+                gosterDurum('Lütfen bir durak kodu girin.', 'text-yellow-400');
+                return;
+            }
+
+            // Yükleniyor durumu
+            busListElement.innerHTML = '';
+            gosterDurum('Veriler çekiliyor...', 'text-blue-400 animate-pulse');
+
+            try {
+                // Tarayıcı CORS engeline takılmasın diye proxy kullanıyoruz
+                const proxyUrl = 'https://corsproxy.io/?';
+                const apiUrl = `http://v0.ovapi.nl/tpc/${durakKodu}`;
+                
+                const response = await fetch(proxyUrl + apiUrl);
+                const data = await response.json();
+
+                const durakVerisi = data[durakKodu];
+
+                if (!durakVerisi || !durakVerisi.Passes || Object.keys(durakVerisi.Passes).length === 0) {
+                    gosterDurum('Bu durak için yakın zamanda planlanmış otobüs bulunamadı.', 'text-slate-400');
+                    return;
+                }
+
+                // Veriyi diziye çevirip beklenen varış saatine göre sıralıyoruz
+                const otobusler = Object.values(durakVerisi.Passes).sort((a, b) => 
+                    new Date(a.ExpectedArrivalTime) - new Date(b.ExpectedArrivalTime)
+                );
+
+                // UI'ı oluştur
+                statusElement.classList.add('hidden');
+                otobusleriEkranaCiz(otobusler, busListElement);
+
+            } catch (error) {
+                console.error("API Hatası:", error);
+                gosterDurum('Veri çekilemedi. Durak kodunu kontrol edin.', 'text-red-400');
+            }
+        }
+
+        function otobusleriEkranaCiz(otobusler, container) {
+            container.innerHTML = '';
+
+            otobusler.forEach(bus => {
+                const hatNumarasi = bus.LinePublicNumber;
+                const hedef = bus.DestinationName50;
+                const planlananSaat = bus.TargetArrivalTime;
+                const gercekSaat = bus.ExpectedArrivalTime;
+                
+                // Gecikme hesaplama
+                const gecikmeVarMi = planlananSaat !== gercekSaat;
+                const saatClass = gecikmeVarMi ? 'text-red-400' : 'text-emerald-400';
+                const gecikmeMetni = gecikmeVarMi ? `<span class="text-xs text-slate-500 line-through mr-1">${formatSaat(planlananSaat)}</span>` : '';
+
+                // Kart HTML'i (Component yapısı)
+                const cardHTML = `
+                    <div class="flex items-center justify-between p-4 mb-2 bg-slate-700/30 rounded-xl hover:bg-slate-700/50 transition-colors border border-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <!-- Hat Numarası Rozeti -->
+                            <div class="flex items-center justify-center w-12 h-12 bg-blue-600 text-white font-bold text-lg rounded-lg shadow-inner">
+                                ${hatNumarasi}
+                            </div>
+                            
+                            <!-- Gideceği Yer -->
+                            <div>
+                                <h3 class="text-white font-semibold text-base leading-tight">${hedef}</h3>
+                                <p class="text-xs text-slate-400 mt-1">Arriva Bus</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Saat Bilgisi -->
+                        <div class="text-right">
+                            <div class="text-lg font-bold ${saatClass} tracking-wide">
+                                ${gecikmeMetni} ${formatSaat(gercekSaat)}
+                            </div>
+                            ${gecikmeVarMi ? '<div class="text-[10px] text-red-400/80 uppercase tracking-wider font-semibold mt-1">Gecikmeli</div>' : '<div class="text-[10px] text-emerald-500/80 uppercase tracking-wider font-semibold mt-1">Zamanında</div>'}
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        function gosterDurum(mesaj, renkSinifi) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.className = `p-4 text-center text-sm font-medium ${renkSinifi}`;
+            statusElement.textContent = mesaj;
+            statusElement.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
