@@ -1,250 +1,417 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hollanda Canlı Otobüs Saatleri</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Durak Panosu — Hollanda OV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a1b22;
+    --panel: #0f2630;
+    --panel-2: #123240;
+    --line: #1d4453;
+    --amber: #ffc94a;
+    --amber-dim: #a9863a;
+    --teal: #38c6b4;
+    --text: #e7f1f0;
+    --muted: #7fa1a6;
+    --red: #ff7a6b;
+    --green: #57d38c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;}
+  body{min-height:100vh;padding:28px 16px 60px;}
+  .wrap{max-width:640px;margin:0 auto;}
+
+  header{margin-bottom:22px;}
+  .brand{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    font-size:26px;
+    letter-spacing:.3px;
+    display:flex; align-items:baseline; gap:10px;
+    color:var(--text);
+  }
+  .brand span{color:var(--amber);}
+  .sub{color:var(--muted); font-size:13px; margin-top:6px; line-height:1.5;}
+
+  .search-box{
+    margin-top:18px;
+    display:flex; gap:8px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:6px;
+  }
+  .search-box input{
+    flex:1;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    padding:10px 8px;
+  }
+  .search-box input::placeholder{color:var(--muted);}
+  .search-box button{
+    background:var(--amber);
+    color:#1a1305;
+    border:none;
+    border-radius:7px;
+    padding:0 18px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .search-box button:active{transform:translateY(1px);}
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .chip{
+    font-size:12px; color:var(--muted);
+    border:1px solid var(--line);
+    padding:6px 10px; border-radius:20px;
+    cursor:pointer; background:var(--panel);
+  }
+  .chip:hover{border-color:var(--teal); color:var(--teal);}
+
+  .panel{
+    margin-top:22px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+  }
+
+  .status{
+    padding:24px 18px;
+    color:var(--muted);
+    font-size:13px;
+    text-align:center;
+    line-height:1.6;
+  }
+  .status a{color:var(--teal);}
+
+  .stop-list{list-style:none; margin:0; padding:0;}
+  .stop-list li{
+    padding:14px 16px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .stop-list li:last-child{border-bottom:none;}
+  .stop-list li:hover{background:var(--panel-2);}
+  .stop-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14.5px;}
+  .stop-meta{color:var(--muted); font-size:11.5px; margin-top:3px;}
+  .stop-dist{color:var(--amber-dim); font-size:11px; white-space:nowrap;}
+
+  .board-head{
+    padding:16px 16px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+  }
+  .board-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;}
+  .board-town{color:var(--muted); font-size:12px; margin-top:3px;}
+  .back-btn{
+    background:transparent; border:1px solid var(--line); color:var(--muted);
+    border-radius:7px; padding:6px 10px; font-size:11px; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .back-btn:hover{color:var(--teal); border-color:var(--teal);}
+
+  .board{list-style:none; margin:0; padding:0;}
+  .board li{
+    display:grid;
+    grid-template-columns:44px 1fr auto;
+    gap:12px;
+    align-items:center;
+    padding:13px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .board li:last-child{border-bottom:none;}
+  .line-badge{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--amber);
+    font-weight:600;
+    font-size:13px;
+    border-radius:6px;
+    text-align:center;
+    padding:5px 0;
+  }
+  .dest{font-size:14px; color:var(--text);}
+  .dest .kind{color:var(--muted); font-size:11px; display:block; margin-top:2px;}
+  .time-block{text-align:right;}
+  .mins{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:var(--teal);}
+  .clock{color:var(--muted); font-size:11px; margin-top:2px;}
+  .delay{color:var(--red); font-size:11px; margin-top:2px;}
+  .ontime{color:var(--green); font-size:11px; margin-top:2px;}
+
+  .refresh-row{
+    padding:10px 16px; text-align:center; color:var(--muted); font-size:11px;
+    border-top:1px solid var(--line);
+  }
+
+  footer{margin-top:22px; text-align:center; color:var(--muted); font-size:11px; line-height:1.7;}
+  footer a{color:var(--teal);}
+
+  @media (max-width:420px){
+    .brand{font-size:22px;}
+    .stop-dist{display:none;}
+  }
+</style>
 </head>
-<body class="bg-slate-900 text-slate-200 font-sans min-h-screen flex items-center justify-center p-4">
-
-    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
-        
-        <!-- Header -->
-        <div class="p-6 border-b border-slate-700 bg-slate-800/50 shrink-0">
-            <h1 class="text-2xl font-bold text-white tracking-tight">Durak Takibi</h1>
-            <p class="text-sm text-slate-400 mt-1">Leeuwarden & Tüm Hollanda</p>
-            
-            <div class="mt-4 space-y-3">
-                <input type="text" id="searchInput" placeholder="Durak kodu veya Yer (Örn: Leeuwarden)" 
-                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm placeholder:text-slate-500">
-                
-                <div class="flex gap-2">
-                    <button onclick="saatleriGetir()" 
-                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-lg font-medium transition-colors text-sm shadow-lg">
-                        Mavi: Kodu Getir
-                    </button>
-                    <button onclick="durakAra()" 
-                        class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-3 py-2.5 rounded-lg font-medium transition-colors text-sm shadow-lg border border-slate-600">
-                        Gri: İsimden Bul
-                    </button>
-                </div>
-                
-                <div class="flex justify-end mt-1">
-                    <button onclick="koduSecVeGetir('50006541')" 
-                        class="text-[11px] text-emerald-400 hover:text-emerald-300 underline font-medium">
-                        Çalışan Örnek Kod İle Test Et
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div id="statusMessage" class="hidden p-4 text-center text-xs font-medium shrink-0"></div>
-
-        <div id="contentList" class="overflow-y-auto p-4 space-y-2 flex-1">
-            <div class="text-center text-slate-500 text-sm py-6 px-4 leading-relaxed">
-                <p class="mb-3"><span class="text-white font-medium">1. YÖNTEM:</span> Kutuya "Leeuwarden" yazıp <span class="text-slate-300">Gri Butona</span> bas. Etraftaki durakları kodlarıyla bulsun.</p>
-                <p><span class="text-white font-medium">2. YÖNTEM:</span> Arkadaşının durak kodunu öğren, kutuya yazıp <span class="text-blue-400">Mavi Butona</span> bas, direkt saatler gelsin.</p>
-            </div>
-        </div>
-        
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Durak<span>Panosu</span></div>
+    <div class="sub">Hollanda genelinde otobüs / tram / metro duraklarında canlı kalkış saatleri. Bir <b>durak kodu</b> (ör. 32000806) veya bir <b>şehir / semt adı</b> yazın.</div>
+    <div class="search-box">
+      <input id="q" type="text" placeholder="Durak kodu ya da şehir adı — örn. Utrecht, Rotterdam..." autocomplete="off">
+      <button id="go">Ara</button>
     </div>
+    <div class="chips">
+      <div class="chip" data-code="57330620" data-label="Schiphol Centrum, Plaza/NS">Schiphol Plaza</div>
+      <div class="chip" data-code="32000806" data-label="Den Haag, Tholensestraat">Den Haag — Tholensestraat</div>
+      <div class="chip" data-code="24000090" data-label="Heerenveen, Busstation">Heerenveen Busstation</div>
+      <div class="chip" data-city="Utrecht">Utrecht (şehir ara)</div>
+      <div class="chip" data-city="Rotterdam">Rotterdam (şehir ara)</div>
+    </div>
+  </header>
 
-    <script>
-        function formatSaat(tarihString) {
-            if (!tarihString) return "--:--";
-            const date = new Date(tarihString);
-            return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-        }
+  <div class="panel" id="panel">
+    <div class="status">Aramak için yukarı bir durak kodu ya da şehir adı yazın.</div>
+  </div>
 
-        // GRİ BUTON İŞLEVİ (İSİM -> KOORDİNAT -> DURAK KODU)
-        async function durakAra() {
-            const query = document.getElementById('searchInput').value.trim();
-            const contentElement = document.getElementById('contentList');
-            
-            // Eğer kullanıcı sadece rakam girdiyse ve griye bastıysa uyar
-            if (/^\d+$/.test(query)) {
-                gosterDurum('Rakam girdiniz. Saatleri görmek için Lütfen MAVİ butona (Kodu Getir) basın.', 'text-yellow-400 bg-yellow-950/30');
-                return;
-            }
+  <footer>
+    Canlı veriler <a href="https://v0.ovapi.nl" target="_blank" rel="noopener">OVapi</a> (NDOV) ve durak konumları <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a> katkıcılarından alınır. Tren istasyonları bu araçta desteklenmez, sadece otobüs / tram / metro / feribot duraklarını kapsar.
+  </footer>
+</div>
 
-            if (query.length < 2) {
-                gosterDurum('Lütfen geçerli bir şehir veya sokak adı girin.', 'text-yellow-400 bg-yellow-950/30');
-                return;
-            }
+<script>
+const panel = document.getElementById('panel');
+const input = document.getElementById('q');
+const goBtn = document.getElementById('go');
+let refreshTimer = null;
+let liveCodes = [];
 
-            contentElement.innerHTML = '';
-            gosterDurum('Bölge aranıyor ve etraftaki duraklar taranıyor...', 'text-slate-300 animate-pulse bg-slate-700/50');
+function setPanel(html){ panel.innerHTML = html; }
+function esc(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-            try {
-                // 1. Nominatim ile aranan yerin koordinatlarını çek
-                const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=nl&q=${encodeURIComponent(query)}&limit=1`;
-                const geoRes = await fetch(geoUrl);
-                const geoData = await geoRes.json();
+function haversine(lat1,lon1,lat2,lon2){
+  const R = 6371000;
+  const toRad = d => d*Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
 
-                if (!geoData || geoData.length === 0) {
-                    gosterDurum(`"${query}" Hollanda sınırları içinde bulunamadı.`, 'text-yellow-400 bg-yellow-950/30');
-                    return;
-                }
+async function fetchJsonWithFallback(url){
+  const attempts = [
+    () => fetch(url).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); }),
+    () => fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url)).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); }),
+    () => fetch('https://corsproxy.io/?url='+encodeURIComponent(url)).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); }),
+    () => fetch('https://thingproxy.freeboard.io/fetch/'+url).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); })
+  ];
+  let lastErr;
+  for(const attempt of attempts){
+    try{
+      return await attempt();
+    } catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error('Tüm bağlantı denemeleri başarısız oldu');
+}
 
-                const lat = parseFloat(geoData[0].lat).toFixed(4);
-                const lon = parseFloat(geoData[0].lon).toFixed(4);
+function iconFor(type){
+  switch((type||'').toUpperCase()){
+    case 'BUS': return '🚌';
+    case 'TRAM': return '🚋';
+    case 'METRO': return '🚇';
+    case 'FERRY': return '⛴';
+    case 'TRAIN': return '🚆';
+    default: return '🚏';
+  }
+}
 
-                // 2. Koordinatın etrafındaki (2000m) durakları OVapi'den çek (HTTPS!)
-                const ovUrl = `https://v0.ovapi.nl/api/nearby/${lat}/${lon}/2000`;
-                const ovRes = await fetch(ovUrl);
-                
-                if (!ovRes.ok) throw new Error(`OVapi yakındaki durak servisi hata döndürdü (HTTP ${ovRes.status}). Servis şu an kesinti yaşıyor olabilir.`);
-                const ovData = await ovRes.json();
+async function handleSearch(rawQuery){
+  const query = (rawQuery||'').trim();
+  if(!query){ return; }
+  if(/^\d{4,10}$/.test(query)){
+    loadDepartures([query], null, null);
+  } else {
+    searchByPlace(query);
+  }
+}
 
-                const duraklar = Object.values(ovData);
+async function searchByPlace(place){
+  clearInterval(refreshTimer);
+  setPanel('<div class="status">"'+esc(place)+'" için duraklar aranıyor…</div>');
+  try{
+    const geoRes = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=nl&limit=1&q='+encodeURIComponent(place));
+    if(!geoRes.ok) throw new Error('geo-fail');
+    const geoData = await geoRes.json();
+    if(!geoData.length){
+      setPanel('<div class="status">"'+esc(place)+'" bulunamadı. Şehir/semt adını kontrol edip tekrar deneyin, ya da doğrudan bir durak kodu girin.</div>');
+      return;
+    }
+    const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
+    const displayName = geoData[0].display_name.split(',')[0];
 
-                if (duraklar.length === 0) {
-                    gosterDurum(`"${query}" çevresinde aktif otobüs durağı bulunamadı.`, 'text-yellow-400 bg-yellow-950/30');
-                    return;
-                }
+    const overpassQuery = '[out:json][timeout:25];('
+      + 'node["public_transport"="platform"](around:2500,'+lat+','+lon+');'
+      + 'node["highway"="bus_stop"](around:2500,'+lat+','+lon+');'
+      + 'node["railway"="tram_stop"](around:2500,'+lat+','+lon+');'
+      + ');out body;';
 
-                gizleDurum();
+    const opRes = await fetch('https://overpass-api.de/api/interpreter', {
+      method:'POST',
+      body: 'data='+encodeURIComponent(overpassQuery)
+    });
+    if(!opRes.ok) throw new Error('overpass-fail');
+    const opData = await opRes.json();
 
-                let html = `<div class="text-xs text-slate-400 mb-3 font-medium uppercase tracking-wider">Bulunan Duraklar (${geoData[0].display_name.split(',')[0]}):</div>`;
-                
-                duraklar.slice(0, 20).forEach(durak => {
-                    const kod = durak.TimingPointCode;
-                    const isim = durak.TimingPointName || 'İsimsiz Durak';
-                    const sehir = durak.Town || '';
-                    const mesafe = durak.Distance ? `${durak.Distance}m` : '';
+    const seen = new Set();
+    const stops = [];
+    for(const el of (opData.elements||[])){
+      const tags = el.tags || {};
+      const ref = tags.ref || '';
+      const m = ref.match(/NL:Q:(\d+)/);
+      if(!m) continue;
+      const code = m[1];
+      if(seen.has(code)) continue;
+      seen.add(code);
+      stops.push({
+        code,
+        name: tags.name || tags['ref:name'] || 'İsimsiz durak',
+        lat: el.lat, lon: el.lon,
+        dist: Math.round(haversine(lat, lon, el.lat, el.lon))
+      });
+    }
+    stops.sort((a,b)=>a.dist-b.dist);
 
-                    html += `
-                    <div onclick="koduSecVeGetir('${kod}')" class="cursor-pointer group flex items-center justify-between p-3.5 bg-slate-700/30 hover:bg-slate-700/80 rounded-xl mb-2 border border-slate-700/60 transition-all shadow-sm">
-                        <div>
-                            <div class="text-white font-medium text-sm group-hover:text-blue-400 transition-colors">${isim}</div>
-                            <div class="text-xs text-slate-400 mt-1">${sehir} ${mesafe ? '• ' + mesafe : ''}</div>
-                        </div>
-                        <div class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-600 font-mono">
-                            Kod: ${kod}
-                        </div>
-                    </div>
-                    `;
-                });
+    if(!stops.length){
+      setPanel('<div class="status">"'+esc(displayName)+'" yakınında OVapi durak kodu eşleşen bir durak bulunamadı.<br>OpenStreetMap üzerinde bu bölgedeki duraklara henüz durak kodu (ref) eklenmemiş olabilir.<br>Alternatif olarak durak kodunu doğrudan girebilir ya da <a href="https://9292.nl" target="_blank" rel="noopener">9292.nl</a> üzerinden arayabilirsiniz.</div>');
+      return;
+    }
 
-                contentElement.innerHTML = html;
+    let html = '<div class="board-head"><div><div class="board-title">'+esc(displayName)+'</div><div class="board-town">'+stops.length+' durak bulundu · en yakın önce</div></div></div>';
+    html += '<ul class="stop-list">';
+    for(const s of stops.slice(0,25)){
+      html += '<li data-code="'+s.code+'" data-label="'+esc(s.name)+'">'
+        + '<div><div class="stop-name">'+esc(s.name)+'</div><div class="stop-meta">Kod: '+s.code+'</div></div>'
+        + '<div class="stop-dist">'+s.dist+' m</div>'
+        + '</li>';
+    }
+    html += '</ul>';
+    setPanel(html);
 
-            } catch (error) {
-                console.error("Arama Hatası:", error);
-                gosterDurum(`Bağlantı hatası oluştu: ${error.message}`, 'text-red-400 bg-red-950/40 border border-red-800/50');
-            }
-        }
+    panel.querySelectorAll('.stop-list li').forEach(li=>{
+      li.addEventListener('click', ()=>{
+        loadDepartures([li.dataset.code], li.dataset.label, null);
+      });
+    });
 
-        // Listeden tıklanınca çalışır
-        function koduSecVeGetir(kod) {
-            document.getElementById('searchInput').value = kod;
-            saatleriGetir(kod);
-        }
+  } catch(err){
+    setPanel('<div class="status">Şehir araması şu anda başarısız oldu (bağlantı ya da servis sorunu olabilir).<br>Doğrudan bir durak kodu girmeyi deneyin, ya da <a href="https://halteviewer.ov-data.nl" target="_blank" rel="noopener">halteviewer.ov-data.nl</a> üzerinden durak kodunu bulun.</div>');
+  }
+}
 
-        // MAVİ BUTON İŞLEVİ (KOD -> CANLI SAATLER)
-        async function saatleriGetir(zorunluKod = null) {
-            const contentElement = document.getElementById('contentList');
-            const durakKodu = zorunluKod || document.getElementById('searchInput').value.trim();
+async function loadDepartures(codes, label){
+  clearInterval(refreshTimer);
+  liveCodes = codes;
+  setPanel('<div class="status">Kalkış saatleri yükleniyor… ('+codes.join(', ')+')<br><span style="font-size:11px;">Bağlantı denemesi birkaç saniye sürebilir.</span></div>');
+  try {
+    await renderDepartures(codes, label);
+    refreshTimer = setInterval(()=>renderDepartures(codes, label, true), 20000);
+  } catch(err){
+    setPanel(
+      '<div class="board-head"><div><div class="board-title">Bağlanılamadı</div><div class="board-town">Kod: '+esc(codes.join(', '))+'</div></div>'
+      + '<button class="back-btn" onclick="location.reload()">Yeniden dene</button></div>'
+      + '<div class="status">OVapi servisine ulaşılamadı. Bazı tarayıcılar bu servisin canlı veri erişimini engelleyebiliyor.<br>'
+      + 'Bu kod için saatleri manuel görmek üzere <a href="https://9292.nl" target="_blank" rel="noopener">9292.nl</a> adresine bakabilir, ya da birkaç saniye sonra tekrar deneyebilirsiniz.</div>'
+    );
+  }
+}
 
-            if (!durakKodu) {
-                gosterDurum('Lütfen bir durak kodu girin.', 'text-yellow-400 bg-yellow-950/30');
-                return;
-            }
+async function renderDepartures(codes, label, silent){
+  const data = await fetchJsonWithFallback('https://v0.ovapi.nl/tpc/'+codes.join(',')+'/departures');
 
-            contentElement.innerHTML = '';
-            gosterDurum(`"${durakKodu}" durağı için canlı kalkışlar alınıyor...`, 'text-blue-400 animate-pulse bg-blue-950/30');
+  let passes = [];
+  let stopName = label, stopTown = '';
+  for(const code of codes){
+    const entry = data[code];
+    if(!entry) continue;
+    const p = entry.Passes || {};
+    for(const key in p){
+      passes.push(p[key]);
+    }
+  }
+  if(passes.length){
+    stopName = stopName || passes[0].TimingPointName;
+    stopTown = passes[0].TimingPointTown || '';
+  }
 
-            try {
-                // HTTPS!
-                const response = await fetch(`https://v0.ovapi.nl/tpc/${durakKodu}`);
-                
-                if (response.status === 404) {
-                    gosterDurum(`"${durakKodu}" kodlu durak sistemde bulunamadı. Eski/geçersiz bir kod olabilir.`, 'text-rose-400 bg-rose-950/30');
-                    return;
-                }
+  passes = passes.filter(p => p.TripStopStatus !== 'CANCEL' && p.TripStopStatus !== 'PASSED');
+  passes.sort((a,b)=>{
+    const ta = new Date(a.ExpectedDepartureTime || a.TargetDepartureTime).getTime();
+    const tb = new Date(b.ExpectedDepartureTime || b.TargetDepartureTime).getTime();
+    return ta - tb;
+  });
 
-                if (!response.ok) throw new Error(`OVapi hata döndürdü (HTTP ${response.status}). Servis şu an kesinti yaşıyor olabilir.`);
+  const now = Date.now();
+  let html = '<div class="board-head"><div><div class="board-title">'+esc(stopName||('Durak '+codes.join(', ')))+'</div>'
+    + '<div class="board-town">'+esc(stopTown)+(stopTown?' · ':'')+'Kod: '+esc(codes.join(', '))+'</div></div>'
+    + '<button class="back-btn" onclick="resetToSearch()">← Ara</button></div>';
 
-                const data = await response.json();
-                const durakVerisi = data[durakKodu];
+  if(!passes.length){
+    html += '<div class="status">Şu anda bu durak için beklenen kalkış bulunmuyor. Gece saatleri olabilir, ya da bu durak için canlı veri sağlanmıyor olabilir.</div>';
+  } else {
+    html += '<ul class="board">';
+    for(const p of passes.slice(0,16)){
+      const target = new Date(p.TargetDepartureTime);
+      const expected = new Date(p.ExpectedDepartureTime || p.TargetDepartureTime);
+      const diffMin = Math.round((expected.getTime() - now)/60000);
+      const delayMin = Math.round((expected.getTime() - target.getTime())/60000);
+      const timeStr = expected.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+      const minsLabel = diffMin <= 0 ? 'Şimdi' : diffMin+' dk';
+      html += '<li>'
+        + '<div class="line-badge">'+esc(p.LinePublicNumber || p.LinePlanningNumber || '?')+'</div>'
+        + '<div class="dest">'+iconFor(p.TransportType)+' '+esc(p.DestinationName50 || p.LineName || 'Bilinmiyor')
+          + '<span class="kind">'+esc(p.DataOwnerCode||'')+' · '+esc(p.TransportType||'')+'</span></div>'
+        + '<div class="time-block"><div class="mins">'+minsLabel+'</div><div class="clock">'+timeStr+'</div>'
+        + (delayMin > 0 ? '<div class="delay">+'+delayMin+' dk gecikme</div>' : '<div class="ontime">zamanında</div>')
+        + '</div>'
+        + '</li>';
+    }
+    html += '</ul>';
+  }
+  html += '<div class="refresh-row">Otomatik yenileme: her 20 sn · son güncelleme '+new Date().toLocaleTimeString('tr-TR')+'</div>';
+  setPanel(html);
+}
 
-                if (!durakVerisi || !durakVerisi.Passes || Object.keys(durakVerisi.Passes).length === 0) {
-                    gosterDurum(`Bu duraktan planlanmış bir otobüs geçişi bulunmuyor.`, 'text-slate-400 bg-slate-800');
-                    return;
-                }
+function resetToSearch(){
+  clearInterval(refreshTimer);
+  setPanel('<div class="status">Aramak için yukarı bir durak kodu ya da şehir adı yazın.</div>');
+  input.value = '';
+  input.focus();
+}
 
-                const otobusler = Object.values(durakVerisi.Passes).sort((a, b) => 
-                    new Date(a.ExpectedArrivalTime || a.TargetArrivalTime) - new Date(b.ExpectedArrivalTime || b.TargetArrivalTime)
-                );
+goBtn.addEventListener('click', ()=>handleSearch(input.value));
+input.addEventListener('keydown', e=>{ if(e.key==='Enter') handleSearch(input.value); });
 
-                gizleDurum();
-                otobusleriEkranaCiz(otobusler, contentElement);
-
-            } catch (error) {
-                console.error("Saat Hatası:", error);
-                gosterDurum(`Saat verisi alınamadı. Hata: ${error.message}`, 'text-red-400 bg-red-950/40');
-            }
-        }
-
-        function otobusleriEkranaCiz(otobusler, container) {
-            let html = '<div class="text-xs text-slate-400 mb-3 font-medium uppercase tracking-wider">Kalkış Saatleri:</div>';
-
-            otobusler.forEach(bus => {
-                const hat = bus.LinePublicNumber || '-';
-                const hedef = bus.DestinationName50 || 'Bilinmiyor';
-                const plan = bus.TargetArrivalTime;
-                const gercek = bus.ExpectedArrivalTime || plan;
-                
-                const gecikmeli = plan && gercek && plan !== gercek;
-                const saatClass = gecikmeli ? 'text-rose-400' : 'text-emerald-400';
-                const gecikmeMetni = gecikmeli ? `<span class="text-xs text-slate-500 line-through mr-1">${formatSaat(plan)}</span>` : '';
-
-                html += `
-                    <div class="flex items-center justify-between p-3.5 bg-slate-700/30 rounded-xl hover:bg-slate-700/50 transition-colors border border-slate-700/60 mb-2">
-                        <div class="flex items-center gap-3">
-                            <div class="flex items-center justify-center w-11 h-11 bg-blue-600 text-white font-bold text-base rounded-lg shadow-sm">
-                                ${hat}
-                            </div>
-                            <div>
-                                <h3 class="text-white font-medium text-sm leading-snug">${hedef}</h3>
-                                <p class="text-xs text-slate-400 mt-0.5">Arriva</p>
-                            </div>
-                        </div>
-                        
-                        <div class="text-right">
-                            <div class="text-base font-semibold ${saatClass} tracking-wide">
-                                ${gecikmeMetni}${formatSaat(gercek)}
-                            </div>
-                            <div class="text-[10px] ${gecmeliMi(plan, gercek)} font-medium mt-0.5">
-                                ${gecikmeli ? 'Gecikmeli' : 'Zamanında'}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-
-        function gecmeliMi(plan, gercek) {
-            return (plan && gercek && plan !== gercek) ? 'text-rose-400/80' : 'text-emerald-400/80';
-        }
-
-        function gosterDurum(mesaj, stil) {
-            const el = document.getElementById('statusMessage');
-            el.className = `p-3 rounded-lg mx-4 mt-3 mb-2 text-center text-xs font-medium break-all shadow-inner ${stil}`;
-            el.textContent = mesaj;
-            el.classList.remove('hidden');
-        }
-
-        function gizleDurum() {
-            document.getElementById('statusMessage').classList.add('hidden');
-        }
-    </script>
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    if(chip.dataset.code){
+      loadDepartures([chip.dataset.code], chip.dataset.label);
+    } else if(chip.dataset.city){
+      input.value = chip.dataset.city;
+      searchByPlace(chip.dataset.city);
+    }
+  });
+});
+</script>
 </body>
 </html>
