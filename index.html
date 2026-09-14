@@ -211,18 +211,20 @@ function haversine(lat1,lon1,lat2,lon2){
 
 async function fetchJsonWithFallback(url){
   const attempts = [
-    () => fetch(url).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); }),
-    () => fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url)).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); }),
-    () => fetch('https://corsproxy.io/?url='+encodeURIComponent(url)).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); }),
-    () => fetch('https://thingproxy.freeboard.io/fetch/'+url).then(r => { if(!r.ok) throw new Error('status '+r.status); return r.json(); })
+    {name:'Direkt', run: () => fetch(url).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })},
+    {name:'allorigins', run: () => fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url)).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })},
+    {name:'corsproxy.io', run: () => fetch('https://corsproxy.io/?url='+encodeURIComponent(url)).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })},
+    {name:'thingproxy', run: () => fetch('https://thingproxy.freeboard.io/fetch/'+url).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })}
   ];
-  let lastErr;
+  const errors = [];
   for(const attempt of attempts){
     try{
-      return await attempt();
-    } catch(e){ lastErr = e; }
+      return await attempt.run();
+    } catch(e){ errors.push(attempt.name+': '+e.message); }
   }
-  throw lastErr || new Error('Tüm bağlantı denemeleri başarısız oldu');
+  const err = new Error('Tüm bağlantı denemeleri başarısız oldu');
+  err.details = errors;
+  throw err;
 }
 
 function iconFor(type){
@@ -327,11 +329,14 @@ async function loadDepartures(codes, label){
     await renderDepartures(codes, label);
     refreshTimer = setInterval(()=>renderDepartures(codes, label, true), 20000);
   } catch(err){
+    const details = err.details ? err.details.map(esc).join('<br>') : esc(err.message||'bilinmeyen hata');
     setPanel(
       '<div class="board-head"><div><div class="board-title">Bağlanılamadı</div><div class="board-town">Kod: '+esc(codes.join(', '))+'</div></div>'
       + '<button class="back-btn" onclick="location.reload()">Yeniden dene</button></div>'
-      + '<div class="status">OVapi servisine ulaşılamadı. Bazı tarayıcılar bu servisin canlı veri erişimini engelleyebiliyor.<br>'
-      + 'Bu kod için saatleri manuel görmek üzere <a href="https://9292.nl" target="_blank" rel="noopener">9292.nl</a> adresine bakabilir, ya da birkaç saniye sonra tekrar deneyebilirsiniz.</div>'
+      + '<div class="status">OVapi servisine hiçbir yöntemle ulaşılamadı.<br>'
+      + 'Bu kod için saatleri manuel görmek üzere <a href="https://9292.nl" target="_blank" rel="noopener">9292.nl</a> adresine bakabilir, ya da tekrar deneyebilirsiniz.'
+      + '<div style="margin-top:14px; text-align:left; font-size:10.5px; color:var(--amber-dim); background:var(--panel-2); border-radius:8px; padding:10px; word-break:break-word;">Teknik detay:<br>'+details+'</div>'
+      + '</div>'
     );
   }
 }
