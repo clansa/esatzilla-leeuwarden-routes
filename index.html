@@ -3,57 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leeuwarden Canlı Otobüs Saatleri</title>
+    <title>NL Canlı Otobüs Saatleri</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-200 font-sans min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden">
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
         
         <!-- Header -->
-        <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+        <div class="p-6 border-b border-slate-700 bg-slate-800/50 shrink-0">
             <h1 class="text-2xl font-bold text-white tracking-tight">Durak Takibi</h1>
-            <p class="text-sm text-slate-400 mt-1">Leeuwarden canlı kalkış saatleri</p>
+            <p class="text-sm text-slate-400 mt-1">Tüm Hollanda & Leeuwarden</p>
             
-            <!-- Durak Kodu Giriş Alanı -->
-            <div class="mt-4 space-y-2">
+            <!-- Arama ve Butonlar -->
+            <div class="mt-4 space-y-3">
+                <input type="text" id="searchInput" placeholder="Durak kodu veya şehir adı (örn: Leeuwarden)" 
+                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm placeholder:text-slate-500">
+                
                 <div class="flex gap-2">
-                    <input type="text" id="stopCodeInput" placeholder="Durak Kodu (örn: 21000010)" 
-                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm">
-                    <button onclick="verileriGetir()" 
-                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition-colors text-sm">
-                        Getir
+                    <button onclick="saatleriGetir()" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors text-sm shadow-lg">
+                        Saatleri Getir
                     </button>
-                </div>
-
-                <!-- Hızlı Test Butonu -->
-                <div class="flex items-center justify-between pt-1">
-                    <span class="text-xs text-slate-400">Denemek için:</span>
-                    <button onclick="ornekDurakDoldur('21000010')" 
-                        class="text-xs text-blue-400 hover:text-blue-300 underline">
-                        Leeuwarden Station (21000010)
+                    <button onclick="durakAra()" 
+                        class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2.5 rounded-lg font-medium transition-colors text-sm shadow-lg border border-slate-600">
+                        İsimle Durak Bul
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Durum / Hata Mesajı -->
-        <div id="statusMessage" class="hidden p-4 text-center text-xs font-mono break-all"></div>
+        <div id="statusMessage" class="hidden p-4 text-center text-xs font-medium shrink-0"></div>
 
-        <!-- Otobüs Listesi -->
-        <div id="busList" class="max-h-[420px] overflow-y-auto p-4 space-y-2">
-            <div class="text-center text-slate-500 text-sm py-8">
-                Eklentiyi "ON" yaptıysan test butonuna tıklayarak direkt çalıştırabilirsin.
+        <!-- İçerik Alanı (Otobüsler veya Arama Sonuçları) -->
+        <div id="contentList" class="overflow-y-auto p-4 space-y-2 flex-1">
+            <div class="text-center text-slate-500 text-sm py-8 px-4 leading-relaxed">
+                <p class="mb-4">1. Durak kodunu biliyorsan yazıp <span class="text-blue-400">"Saatleri Getir"</span>e bas.</p>
+                <p>2. Kodu bilmiyorsan kutuya <span class="text-white">Leeuwarden</span> yazıp <span class="text-slate-300">"İsimle Durak Bul"</span> butonuna tıkla.</p>
             </div>
         </div>
         
     </div>
 
     <script>
-        function ornekDurakDoldur(kod) {
-            document.getElementById('stopCodeInput').value = kod;
-            verileriGetir();
-        }
+        // Tüm Hollanda duraklarını bir kez çekip burada hafızada tutacağız ki her aramada beklemesin
+        let tumDuraklarCache = null;
 
         function formatSaat(tarihString) {
             if (!tarihString) return "--:--";
@@ -61,33 +61,103 @@
             return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
         }
 
-        async function verileriGetir() {
-            const inputElement = document.getElementById('stopCodeInput');
-            const busListElement = document.getElementById('busList');
+        async function durakAra() {
+            const inputVal = document.getElementById('searchInput').value.trim().toLowerCase();
+            const contentElement = document.getElementById('contentList');
+            
+            if (inputVal.length < 3) {
+                gosterDurum('Arama yapmak için en az 3 harf girmelisin.', 'text-yellow-400 bg-yellow-950/30');
+                return;
+            }
+
+            contentElement.innerHTML = '';
+            gosterDurum('Tüm Hollanda durakları taranıyor...', 'text-emerald-400 animate-pulse bg-emerald-950/30');
+
+            try {
+                // Eğer duraklar daha önce çekilmediyse, 1 kereye mahsus API'den tüm listeyi indirir
+                if (!tumDuraklarCache) {
+                    const res = await fetch('http://v0.ovapi.nl/stop/');
+                    if (!res.ok) throw new Error('Durak listesi alınamadı');
+                    tumDuraklarCache = await res.json();
+                }
+
+                // İsimde veya Şehir adında aranan kelime geçenleri filtrele (En fazla 30 sonuç)
+                const sonuclar = Object.values(tumDuraklarCache).filter(s => 
+                    (s.Town && s.Town.toLowerCase().includes(inputVal)) ||
+                    (s.TimingPointName && s.TimingPointName.toLowerCase().includes(inputVal))
+                ).slice(0, 30);
+
+                if (sonuclar.length === 0) {
+                    gosterDurum(`"${inputVal}" aramasına uygun durak bulunamadı.`, 'text-yellow-400 bg-yellow-950/30');
+                    return;
+                }
+
+                gizleDurum();
+                
+                // Arama sonuçlarını ekrana çiz
+                let html = `<div class="text-xs text-slate-400 mb-3 font-medium uppercase tracking-wider">"${inputVal}" için sonuçlar:</div>`;
+                
+                sonuclar.forEach(durak => {
+                    const kod = durak.TimingPointCode;
+                    const isim = durak.TimingPointName;
+                    const sehir = durak.Town;
+                    
+                    html += `
+                    <div onclick="koduSecVeGetir('${kod}')" class="cursor-pointer group flex items-center justify-between p-3.5 bg-slate-700/30 hover:bg-slate-700/80 rounded-xl mb-2 border border-slate-700/60 transition-all">
+                        <div>
+                            <div class="text-white font-medium text-sm group-hover:text-blue-400 transition-colors">${isim}</div>
+                            <div class="text-xs text-slate-400 mt-1">${sehir}</div>
+                        </div>
+                        <div class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-600">
+                            Kod: ${kod}
+                        </div>
+                    </div>
+                    `;
+                });
+                
+                contentElement.innerHTML = html;
+
+            } catch (error) {
+                console.error("Arama Hatası:", error);
+                gosterDurum('Arama yapılırken hata oluştu. CORS eklentisinin açık olduğundan emin ol.', 'text-red-400 bg-red-950/40 border border-red-800/50');
+            }
+        }
+
+        // Arama sonucundan bir durağa tıklanınca otomatik saatleri çeker
+        function koduSecVeGetir(kod) {
+            document.getElementById('searchInput').value = kod;
+            saatleriGetir();
+        }
+
+        async function saatleriGetir() {
+            const inputElement = document.getElementById('searchInput');
+            const contentElement = document.getElementById('contentList');
             
             const durakKodu = inputElement.value.trim();
 
             if (!durakKodu) {
-                gosterDurum('Lütfen bir durak kodu girin.', 'text-yellow-400 bg-yellow-950/30');
+                gosterDurum('Lütfen bir durak kodu veya isim girin.', 'text-yellow-400 bg-yellow-950/30');
                 return;
             }
 
-            busListElement.innerHTML = '';
+            contentElement.innerHTML = '';
             gosterDurum('Canlı veriler çekiliyor...', 'text-blue-400 animate-pulse bg-blue-950/30');
 
             try {
-                // Eklenti açık olduğu için hiçbir proxy'e gerek yok, doğrudan bağlanıyoruz.
                 const response = await fetch(`http://v0.ovapi.nl/tpc/${durakKodu}`);
                 
-                if (!response.ok) {
-                    throw new Error(`API yanıt vermedi (Kod: ${response.status})`);
+                if (response.status === 404) {
+                    gosterDurum(`"${durakKodu}" kodlu durak bulunamadı. Lütfen "İsimle Durak Bul" butonunu kullanarak şehri aratın.`, 'text-yellow-400 bg-yellow-950/30 border border-yellow-800/50');
+                    return;
                 }
+
+                if (!response.ok) throw new Error(`API yanıt vermedi`);
 
                 const data = await response.json();
                 const durakVerisi = data[durakKodu];
 
                 if (!durakVerisi || !durakVerisi.Passes || Object.keys(durakVerisi.Passes).length === 0) {
-                    gosterDurum(`"${durakKodu}" kodlu durakta şu an beklenen otobüs yok veya kod hatalı.`, 'text-slate-400 bg-slate-800');
+                    gosterDurum(`Bu durakta şu an beklenen bir otobüs yok.`, 'text-slate-400 bg-slate-800');
                     return;
                 }
 
@@ -96,16 +166,16 @@
                 );
 
                 gizleDurum();
-                otobusleriEkranaCiz(otobusler, busListElement);
+                otobusleriEkranaCiz(otobusler, contentElement);
 
             } catch (error) {
-                console.error("Detaylı API Hatası:", error);
-                gosterDurum(`Sunucuya bağlanılamadı. Hata: ${error.message} (CORS eklentisinin ON olduğundan emin ol)`, 'text-red-400 bg-red-950/40 border border-red-800/50');
+                console.error("API Hatası:", error);
+                gosterDurum(`Sisteme bağlanılamadı. Eklentinin "ON" olduğundan emin ol.`, 'text-red-400 bg-red-950/40 border border-red-800/50');
             }
         }
 
         function otobusleriEkranaCiz(otobusler, container) {
-            container.innerHTML = '';
+            let html = '<div class="text-xs text-slate-400 mb-3 font-medium uppercase tracking-wider">Yaklaşan Otobüsler:</div>';
 
             otobusler.forEach(bus => {
                 const hatNumarasi = bus.LinePublicNumber || '-';
@@ -117,8 +187,8 @@
                 const saatClass = gecikmeVarMi ? 'text-rose-400' : 'text-emerald-400';
                 const gecikmeMetni = gecikmeVarMi ? `<span class="text-xs text-slate-500 line-through mr-1">${formatSaat(planlananSaat)}</span>` : '';
 
-                const cardHTML = `
-                    <div class="flex items-center justify-between p-3.5 bg-slate-700/30 rounded-xl hover:bg-slate-700/50 transition-colors border border-slate-700/60">
+                html += `
+                    <div class="flex items-center justify-between p-3.5 bg-slate-700/30 rounded-xl hover:bg-slate-700/50 transition-colors border border-slate-700/60 mb-2">
                         <div class="flex items-center gap-3">
                             <div class="flex items-center justify-center w-11 h-11 bg-blue-600 text-white font-bold text-base rounded-lg shadow-sm">
                                 ${hatNumarasi}
@@ -139,14 +209,14 @@
                         </div>
                     </div>
                 `;
-                
-                container.innerHTML += cardHTML;
             });
+            
+            container.innerHTML = html;
         }
 
         function gosterDurum(mesaj, stil) {
             const statusElement = document.getElementById('statusMessage');
-            statusElement.className = `p-3 rounded-lg mx-4 mt-3 text-center text-xs font-mono break-all ${stil}`;
+            statusElement.className = `p-3 rounded-lg mx-4 mt-3 mb-2 text-center text-xs font-medium break-all shadow-inner ${stil}`;
             statusElement.textContent = mesaj;
             statusElement.classList.remove('hidden');
         }
