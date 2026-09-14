@@ -43,7 +43,7 @@
         <!-- Otobüs Listesi -->
         <div id="busList" class="max-h-[420px] overflow-y-auto p-4 space-y-2">
             <div class="text-center text-slate-500 text-sm py-8">
-                Yukarıdaki alana durak kodunu gir veya test için butona tıkla.
+                Eklentiyi "ON" yaptıysan test butonuna tıklayarak direkt çalıştırabilirsin.
             </div>
         </div>
         
@@ -61,45 +61,6 @@
             return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
         }
 
-        // CORS Engelini Aşmak İçin Yenilenmiş Çoklu Proxy Sistemi
-        async function fetchWithFallback(durakKodu) {
-            const targetUrl = `http://v0.ovapi.nl/tpc/${durakKodu}`;
-            
-            // Proxy 1: CodeTabs (Şu an en stabil ücretsiz CORS bypass)
-            try {
-                const p1 = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-                const res = await fetch(p1);
-                if (res.ok) return await res.json();
-            } catch (e) {
-                console.warn("Proxy 1 (CodeTabs) başarısız...");
-            }
-
-            // Proxy 2: AllOrigins GET (Raw yerine JSON formatında çekip parse ediyoruz, timeout'a düşmez)
-            try {
-                const p2 = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-                const res = await fetch(p2);
-                if (res.ok) {
-                    const data = await res.json();
-                    return JSON.parse(data.contents); 
-                }
-            } catch (e) {
-                console.warn("Proxy 2 (AllOrigins) başarısız...");
-            }
-
-            // Proxy 3: ThingProxy (Yedek)
-            try {
-                const p3 = `https://thingproxy.freeboard.io/fetch/${targetUrl}`;
-                const res = await fetch(p3);
-                if (res.ok) return await res.json();
-            } catch (e) {
-                console.warn("Proxy 3 (ThingProxy) başarısız...");
-            }
-
-            // 4. Doğrudan (Eğer tarayıcıda CORS eklentisi kuruluysa çalışır)
-            const direct = await fetch(targetUrl);
-            return await direct.json();
-        }
-
         async function verileriGetir() {
             const inputElement = document.getElementById('stopCodeInput');
             const busListElement = document.getElementById('busList');
@@ -115,12 +76,18 @@
             gosterDurum('Canlı veriler çekiliyor...', 'text-blue-400 animate-pulse bg-blue-950/30');
 
             try {
-                const data = await fetchWithFallback(durakKodu);
+                // Eklenti açık olduğu için hiçbir proxy'e gerek yok, doğrudan bağlanıyoruz.
+                const response = await fetch(`http://v0.ovapi.nl/tpc/${durakKodu}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API yanıt vermedi (Kod: ${response.status})`);
+                }
 
+                const data = await response.json();
                 const durakVerisi = data[durakKodu];
 
                 if (!durakVerisi || !durakVerisi.Passes || Object.keys(durakVerisi.Passes).length === 0) {
-                    gosterDurum(`"${durakKodu}" kodlu durakta şu an beklenen otobüs yok.`, 'text-slate-400 bg-slate-800');
+                    gosterDurum(`"${durakKodu}" kodlu durakta şu an beklenen otobüs yok veya kod hatalı.`, 'text-slate-400 bg-slate-800');
                     return;
                 }
 
@@ -133,7 +100,7 @@
 
             } catch (error) {
                 console.error("Detaylı API Hatası:", error);
-                gosterDurum(`Sunucuya bağlanılamadı. Kodu doğru yazdığına emin ol veya tarayıcına 'CORS Unblock' eklentisi kur.`, 'text-red-400 bg-red-950/40 border border-red-800/50');
+                gosterDurum(`Sunucuya bağlanılamadı. Hata: ${error.message} (CORS eklentisinin ON olduğundan emin ol)`, 'text-red-400 bg-red-950/40 border border-red-800/50');
             }
         }
 
