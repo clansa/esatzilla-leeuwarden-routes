@@ -174,11 +174,11 @@
       <button id="go">Ara</button>
     </div>
     <div class="chips">
-      <div class="chip" data-code="57330620" data-label="Schiphol Centrum, Plaza/NS">Schiphol Plaza</div>
-      <div class="chip" data-code="32000806" data-label="Den Haag, Tholensestraat">Den Haag — Tholensestraat</div>
-      <div class="chip" data-code="24000090" data-label="Heerenveen, Busstation">Heerenveen Busstation</div>
-      <div class="chip" data-city="Utrecht">Utrecht (şehir ara)</div>
-      <div class="chip" data-city="Rotterdam">Rotterdam (şehir ara)</div>
+      <div class="chip" data-city="Amsterdam">Amsterdam</div>
+      <div class="chip" data-city="Utrecht">Utrecht</div>
+      <div class="chip" data-city="Rotterdam">Rotterdam</div>
+      <div class="chip" data-city="Den Haag">Den Haag</div>
+      <div class="chip" data-city="Groningen">Groningen</div>
     </div>
   </header>
 
@@ -330,11 +330,14 @@ async function loadDepartures(codes, label){
     refreshTimer = setInterval(()=>renderDepartures(codes, label, true), 20000);
   } catch(err){
     const details = err.details ? err.details.map(esc).join('<br>') : esc(err.message||'bilinmeyen hata');
+    const looks404 = /404/.test(details) && !/HTTP 5|Failed to fetch/.test(details.split('<br>')[1]||'');
+    const explain = looks404
+      ? 'Bu durak kodu OVapi tarafından tanınmıyor — kod hatalı ya da güncel olmayabilir. Kodu <a href="https://halteviewer.ov-data.nl" target="_blank" rel="noopener">halteviewer.ov-data.nl</a> üzerinden (NL:Q: sonrasındaki sayı) doğrulayın, ya da şehir adıyla arayıp listeden bir durak seçin.'
+      : 'OVapi servisine hiçbir yöntemle ulaşılamadı. Bu kod için saatleri manuel görmek üzere <a href="https://9292.nl" target="_blank" rel="noopener">9292.nl</a> adresine bakabilir, ya da tekrar deneyebilirsiniz.';
     setPanel(
-      '<div class="board-head"><div><div class="board-title">Bağlanılamadı</div><div class="board-town">Kod: '+esc(codes.join(', '))+'</div></div>'
-      + '<button class="back-btn" onclick="location.reload()">Yeniden dene</button></div>'
-      + '<div class="status">OVapi servisine hiçbir yöntemle ulaşılamadı.<br>'
-      + 'Bu kod için saatleri manuel görmek üzere <a href="https://9292.nl" target="_blank" rel="noopener">9292.nl</a> adresine bakabilir, ya da tekrar deneyebilirsiniz.'
+      '<div class="board-head"><div><div class="board-title">'+(looks404 ? 'Durak kodu bulunamadı' : 'Bağlanılamadı')+'</div><div class="board-town">Kod: '+esc(codes.join(', '))+'</div></div>'
+      + '<button class="back-btn" onclick="resetToSearch()">← Ara</button></div>'
+      + '<div class="status">'+explain
       + '<div style="margin-top:14px; text-align:left; font-size:10.5px; color:var(--amber-dim); background:var(--panel-2); border-radius:8px; padding:10px; word-break:break-word;">Teknik detay:<br>'+details+'</div>'
       + '</div>'
     );
